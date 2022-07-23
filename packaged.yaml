@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Portfolio Cloudformation Stack
+
+  '
+Parameters:
+  Stage:
+    Type: String
+    Description: Deployment environment (e.g., dev, test, or prod)
+    AllowedValues:
+    - dev
+    - test
+    - prod
+Globals:
+  Function:
+    Runtime: nodejs16.x
+    Tags:
+      Application: portfolio-app
+      Stage:
+        Ref: Stage
+Resources:
+  CloudFrontDistribution:
+    DependsOn:
+    - S3Logs
+    - S3WebsiteBucketPolicy
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName:
+            Fn::GetAtt:
+            - WebsiteBucket
+            - DomainName
+          Id:
+            Fn::Join:
+            - ''
+            - - S3-martincc-portfolio-app-
+              - Ref: Stage
+          S3OriginConfig:
+            OriginAccessIdentity:
+              Fn::Join:
+              - ''
+              - - origin-access-identity/cloudfront/
+                - Ref: CloudFrontOriginAccessIdentity
+        Enabled: 'true'
+        Comment: Portfolio App
+        DefaultRootObject: index.html
+        Logging:
+          IncludeCookies: 'false'
+          Bucket:
+            Fn::GetAtt:
+            - S3Logs
+            - DomainName
+          Prefix: cf-logs/
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          TargetOriginId:
+            Fn::Join:
+            - ''
+            - - S3-martincc-portfolio-app-
+              - Ref: Stage
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        CustomErrorResponses:
+        - ErrorCode: '404'
+          ResponsePagePath: /index.html
+          ResponseCode: '200'
+          ErrorCachingMinTTL: '300'
+        - ErrorCode: '403'
+          ResponsePagePath: /index.html
+          ResponseCode: '200'
+          ErrorCachingMinTTL: '300'
+      Tags:
+      - Key: Application
+        Value: portfolio-app
+      - Key: Stage
+        Value:
+          Ref: Stage
+    Metadata:
+      SamResourceId: CloudFrontDistribution
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Join - '' - - martincc-portfolio-app-oai- - !Ref Stage
+    Metadata:
+      SamResourceId: CloudFrontOriginAccessIdentity
+  S3WebsiteBucketPolicy:
+    DependsOn:
+    - WebsiteBucket
+    - CloudFrontOriginAccessIdentity
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: WebsiteBucket
+      PolicyDocument:
+        Statement:
+        - Sid: Grant a CloudFront Origin Identity access to support private content
+          Action:
+          - s3:GetObject
+          Effect: Allow
+          Resource:
+            Fn::Join:
+            - ''
+            - - 'arn:aws:s3:::'
+              - Ref: WebsiteBucket
+              - /*
+          Principal:
+            CanonicalUser:
+              Fn::GetAtt:
+              - CloudFrontOriginAccessIdentity
+              - S3CanonicalUserId
+    Metadata:
+      SamResourceId: S3WebsiteBucketPolicy
+  WebsiteBucket:
+    DependsOn:
+    - S3Logs
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName:
+        Fn::Join:
+        - '-'
+        - - martincc-portfolio-app
+          - Ref: Stage
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: S3Logs
+        LogFilePrefix: s3-logs/app/
+      Tags:
+      - Key: Application
+        Value: portfolio-app
+      - Key: Stage
+        Value:
+          Ref: Stage
+    Metadata:
+      SamResourceId: WebsiteBucket
+  S3Logs:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketName:
+        Fn::Join:
+        - '-'
+        - - martincc-portfolio-app-logs
+          - Ref: Stage
+      LifecycleConfiguration:
+        Rules:
+        - Id: Purge old log files
+          ExpirationInDays: 30
+          Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+      - Key: Application
+        Value: intern-lab-app
+      - Key: Stage
+        Value:
+          Ref: Stage
+    Metadata:
+      SamResourceId: S3Logs
