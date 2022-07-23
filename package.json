@@ -24,13 +24,11 @@
   "devDependencies": {
     "aws-sdk": "2.715.0",
     "dotenv": "8.2.0",
-    "eslint": "8.20.0",
     "jasmine": "3.6.3",
     "precommit-hook": "3.0.0",
     "prettier": "2.7.1"
   },
   "pre-commit": [
-    "eslint",
     "validate"
   ],
   "dependencies": {
