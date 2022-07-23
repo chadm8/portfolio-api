@@ -32,5 +32,8 @@
   "pre-commit": [
     "eslint",
     "validate"
-  ]
+  ],
+  "dependencies": {
+    "express": "^4.18.1"
+  }
 }
