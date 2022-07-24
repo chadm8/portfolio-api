@@ -143,6 +143,45 @@ Resources:
           Ref: Stage
     Metadata:
       SamResourceId: WebsiteBucket
+  PortfolioTable:
+    DependsOn:
+    - S3Logs
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName:
+        Fn::Join:
+        - ''
+        - - martincc-portfolio-table-
+          - Ref: Stage
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      - AttributeName: email
+        AttributeType: S
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+      GlobalSecondaryIndexes:
+      - IndexName: email-index
+        KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+        Projection:
+          ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+      - Key: Application
+        Value: portfolio-app
+      - Key: Stage
+        Value:
+          Ref: Stage
+    Metadata:
+      SamResourceId: PortfolioTable
   S3Logs:
     Type: AWS::S3::Bucket
     Properties:
